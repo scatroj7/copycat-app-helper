@@ -1,5 +1,12 @@
 
 import { useState, useEffect } from 'react';
+import { 
+  fetchTransactions, 
+  subscribeToTransactions, 
+  addTransaction as addTransactionToCloud, 
+  updateTransaction as updateTransactionInCloud,
+  deleteTransaction as deleteTransactionFromCloud 
+} from '@/services/transactionService';
 
 export type TransactionType = 'income' | 'expense';
 export type FrequencyType = 'once' | 'monthly' | 'quarterly' | 'biannual' | 'yearly' | 'custom';
@@ -32,10 +39,14 @@ interface TransactionsHook {
   dateFormatter: Intl.DateTimeFormat;
   exportTransactions: () => void;
   importTransactions: (file: File) => Promise<void>;
+  loading: boolean;
+  error: string | null;
 }
 
 export const useTransactions = (): TransactionsHook => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Formatters
   const formatter = new Intl.NumberFormat('tr-TR', {
@@ -50,46 +61,61 @@ export const useTransactions = (): TransactionsHook => {
     day: 'numeric'
   });
 
-  // Load data from localStorage on mount
+  // Verileri yükle ve gerçek zamanlı güncellemeleri dinle
   useEffect(() => {
-    try {
-      const storedTransactions = localStorage.getItem('transactions');
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions));
-      }
-    } catch (error) {
-      console.error('Veriler yüklenirken hata:', error);
-    }
+    // İlk veri yüklemesi
+    setLoading(true);
+    fetchTransactions()
+      .then(data => {
+        setTransactions(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Veri yükleme hatası:", err);
+        setError("Veriler yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+        setLoading(false);
+      });
+
+    // Canlı güncellemeler için abonelik oluştur
+    const unsubscribe = subscribeToTransactions((updatedTransactions) => {
+      setTransactions(updatedTransactions);
+    });
+
+    // Temizlik fonksiyonu
+    return () => unsubscribe();
   }, []);
 
-  // Save to localStorage when transactions change
-  useEffect(() => {
-    try {
-      localStorage.setItem('transactions', JSON.stringify(transactions));
-    } catch (error) {
-      console.error('Veriler kaydedilirken hata:', error);
-    }
-  }, [transactions]);
-
   // Add a new transaction
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction = {
-      ...transaction,
-      id: Date.now().toString()
-    };
-    setTransactions(prev => [...prev, newTransaction]);
+  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+    try {
+      await addTransactionToCloud(transaction);
+      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+    } catch (error) {
+      console.error("İşlem eklenirken hata:", error);
+      setError("İşlem eklenirken bir hata oluştu.");
+    }
   };
 
   // Update an existing transaction
-  const updateTransaction = (transaction: Transaction) => {
-    setTransactions(prev => 
-      prev.map(t => t.id === transaction.id ? transaction : t)
-    );
+  const updateTransaction = async (transaction: Transaction) => {
+    try {
+      await updateTransactionInCloud(transaction);
+      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+    } catch (error) {
+      console.error("İşlem güncellenirken hata:", error);
+      setError("İşlem güncellenirken bir hata oluştu.");
+    }
   };
 
   // Delete a transaction
-  const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+  const deleteTransaction = async (id: string) => {
+    try {
+      await deleteTransactionFromCloud(id);
+      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+    } catch (error) {
+      console.error("İşlem silinirken hata:", error);
+      setError("İşlem silinirken bir hata oluştu.");
+    }
   };
 
   // Filter transactions by date range
@@ -193,7 +219,7 @@ export const useTransactions = (): TransactionsHook => {
       try {
         const reader = new FileReader();
         
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             if (!e.target?.result) {
               throw new Error('Dosya okunamadı');
@@ -212,8 +238,12 @@ export const useTransactions = (): TransactionsHook => {
               }
             }
             
-            // Replace existing transactions
-            setTransactions(importedData);
+            // Her bir işlemi Firestore'a ekle
+            for (const transaction of importedData) {
+              const { id, ...data } = transaction;
+              await addTransactionToCloud(data);
+            }
+            
             resolve();
           } catch (parseError) {
             console.error('Veri ayrıştırılırken hata:', parseError);
@@ -247,6 +277,8 @@ export const useTransactions = (): TransactionsHook => {
     formatter,
     dateFormatter,
     exportTransactions,
-    importTransactions
+    importTransactions,
+    loading,
+    error
   };
 };

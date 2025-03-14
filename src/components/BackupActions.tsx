@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { toast } from '@/hooks/use-toast';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface BackupActionsProps {
@@ -64,7 +64,7 @@ const BackupActions = ({ exportTransactions, importTransactions }: BackupActions
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground mb-4">
-          Verilerinizi JSON dosyası olarak dışa aktarabilir ve daha sonra içe aktarabilirsiniz.
+          Verileriniz otomatik olarak buluta kaydedilmektedir. Farklı cihazlardan eriştiğinizde verileriniz senkronize olur.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button 
