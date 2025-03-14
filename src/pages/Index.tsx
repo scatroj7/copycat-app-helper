@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useForecast } from '@/hooks/useForecast';
 import TransactionModal from '@/components/TransactionModal';
 import TransactionList from '@/components/TransactionList';
 import ForecastChart from '@/components/ForecastChart';
+import BackupActions from '@/components/BackupActions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,19 +26,17 @@ const Index = () => {
     getCategoryName,
     getFrequencyName,
     formatter,
-    dateFormatter
+    dateFormatter,
+    exportTransactions,
+    importTransactions
   } = useTransactions();
 
   const { forecastMonths, setForecastMonths, calculateForecast } = useForecast();
 
-  // State for tabs
   const [activeTab, setActiveTab] = useState('dashboard');
-
-  // State for transaction modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<null | any>(null);
 
-  // State for date filter
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -46,13 +44,10 @@ const Index = () => {
   const [startDate, setStartDate] = useState<Date>(firstDayOfMonth);
   const [endDate, setEndDate] = useState<Date>(lastDayOfMonth);
   
-  // State for month filter in transactions tab
   const [monthFilter, setMonthFilter] = useState('current');
 
-  // Filtered transactions for dashboard
   const dashboardTransactions = filteredTransactions(startDate, endDate);
   
-  // Filtered transactions for transactions tab
   let transactionsTabData = [...transactions];
   
   if (monthFilter === 'current') {
@@ -72,19 +67,15 @@ const Index = () => {
     });
   }
   
-  // Sort by date (newest first)
   transactionsTabData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Calculate forecast
   const { monthlyData, totalIncome, totalExpense, totalBalance } = calculateForecast(transactions);
 
-  // Handle opening modal
   const openTransactionModal = (transaction = null) => {
     setEditingTransaction(transaction);
     setIsModalOpen(true);
   };
 
-  // Handle saving transaction
   const handleSaveTransaction = (formData: any) => {
     try {
       if (formData.id) {
@@ -111,7 +102,6 @@ const Index = () => {
     }
   };
 
-  // Handle deleting transaction
   const handleDeleteTransaction = (id: string) => {
     try {
       deleteTransaction(id);
@@ -129,7 +119,6 @@ const Index = () => {
     }
   };
 
-  // Handle date filter
   const handleApplyDateFilter = () => {
     toast({
       title: "Filtre uygulandı",
@@ -193,6 +182,12 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="md:col-span-1">
+              <BackupActions 
+                exportTransactions={exportTransactions}
+                importTransactions={importTransactions}
+              />
+            </div>
             <div className="md:col-span-2">
               <Card className="h-full">
                 <CardHeader>
@@ -227,21 +222,21 @@ const Index = () => {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Yeni İşlem</CardTitle>
-              </CardHeader>
-              <CardContent className="flex justify-center">
-                <Button 
-                  onClick={() => openTransactionModal()}
-                  className="w-full"
-                >
-                  <Plus className="mr-2 h-4 w-4" /> İşlem Ekle
-                </Button>
-              </CardContent>
-            </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Yeni İşlem</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Button 
+                onClick={() => openTransactionModal()}
+                className="w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" /> İşlem Ekle
+              </Button>
+            </CardContent>
+          </Card>
 
           <TransactionList 
             transactions={dashboardTransactions}

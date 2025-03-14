@@ -30,6 +30,8 @@ interface TransactionsHook {
   getFrequencyName: (frequency: string, transaction: Transaction) => string;
   formatter: Intl.NumberFormat;
   dateFormatter: Intl.DateTimeFormat;
+  exportTransactions: () => void;
+  importTransactions: (file: File) => Promise<void>;
 }
 
 export const useTransactions = (): TransactionsHook => {
@@ -162,6 +164,75 @@ export const useTransactions = (): TransactionsHook => {
     return frequencies[frequency] || frequency;
   };
 
+  // Export transactions to a JSON file
+  const exportTransactions = () => {
+    try {
+      const dataStr = JSON.stringify(transactions, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(dataBlob);
+      
+      // Add date to filename
+      const date = new Date();
+      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      downloadLink.download = `butce-verilerim-${formattedDate}.json`;
+      downloadLink.click();
+      
+      URL.revokeObjectURL(downloadLink.href);
+    } catch (error) {
+      console.error('Veri dışa aktarılırken hata:', error);
+      throw new Error('Veriler dışa aktarılamadı: ' + (error as Error).message);
+    }
+  };
+
+  // Import transactions from a JSON file
+  const importTransactions = async (file: File): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          try {
+            if (!e.target?.result) {
+              throw new Error('Dosya okunamadı');
+            }
+            
+            const importedData = JSON.parse(e.target.result as string) as Transaction[];
+            
+            // Validate imported data
+            if (!Array.isArray(importedData)) {
+              throw new Error('Geçersiz veri formatı, dizi bekleniyor');
+            }
+            
+            for (const item of importedData) {
+              if (!item.id || !item.description || !item.amount || !item.date) {
+                throw new Error('Eksik veri alanları');
+              }
+            }
+            
+            // Replace existing transactions
+            setTransactions(importedData);
+            resolve();
+          } catch (parseError) {
+            console.error('Veri ayrıştırılırken hata:', parseError);
+            reject(new Error('Dosya geçerli bir JSON formatında değil'));
+          }
+        };
+        
+        reader.onerror = () => {
+          reject(new Error('Dosya okuma hatası'));
+        };
+        
+        reader.readAsText(file);
+      } catch (error) {
+        console.error('Veri içe aktarılırken hata:', error);
+        reject(new Error('Veriler içe aktarılamadı: ' + (error as Error).message));
+      }
+    });
+  };
+
   return {
     transactions,
     addTransaction,
@@ -174,6 +245,8 @@ export const useTransactions = (): TransactionsHook => {
     getCategoryName,
     getFrequencyName,
     formatter,
-    dateFormatter
+    dateFormatter,
+    exportTransactions,
+    importTransactions
   };
 };
