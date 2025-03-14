@@ -2,17 +2,19 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
 
 // Firebase proje yapılandırması
 // https://firebase.google.com/docs/web/setup adresinden kendi Firebase projenizi oluşturabilirsiniz
 const firebaseConfig = {
-  // Aşağıdaki değerleri kendi Firebase projenizden alınan değerlerle değiştirin
-  apiKey: "AIzaSyDFU2kHZ7A_aHLHHeDDUn4yEcMJIRsXMtM",
-  authDomain: "lovable-budget-app.firebaseapp.com",
-  projectId: "lovable-budget-app",
-  storageBucket: "lovable-budget-app.appspot.com",
-  messagingSenderId: "383333388856",
-  appId: "1:383333388856:web:44d0e8b7a9a87de1b01f11"
+  // Kullanıcının kendi Firebase yapılandırması
+  apiKey: "AIzaSyAoWLmu35IMiPUOaKHpT2e4QMFAuTVbHls",
+  authDomain: "scatrojbutce.firebaseapp.com",
+  projectId: "scatrojbutce",
+  storageBucket: "scatrojbutce.appspot.com", // Düzeltme: .appspot.com olmalı
+  messagingSenderId: "300805995655",
+  appId: "1:300805995655:web:1072d3d94e602aae5ecc22",
+  measurementId: "G-H6JXX90TT4"
 };
 
 // Yerel depolama anahtarı
@@ -30,6 +32,9 @@ export const db = getFirestore(app);
 
 // Auth referansını al
 export const auth = getAuth(app);
+
+// Analytics referansını al
+export const analytics = getAnalytics(app);
 
 // Firebase yapılandırmasını kaydet
 export const saveFirebaseConfig = (config: typeof firebaseConfig) => {
