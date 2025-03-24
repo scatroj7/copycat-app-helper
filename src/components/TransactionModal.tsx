@@ -77,7 +77,9 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
     }
   };
 
-  const handleDateChange = (date: Date) => {
+  const handleDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    
     setFormData({
       ...formData,
       date: date.toISOString().split('T')[0]
@@ -226,9 +228,8 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
                   <Calendar
                     mode="single"
                     selected={formData.date ? new Date(formData.date) : undefined}
-                    onSelect={(date) => date && handleDateChange(date)}
+                    onSelect={handleDateChange}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
