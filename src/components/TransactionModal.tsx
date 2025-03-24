@@ -132,7 +132,7 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-card w-full max-w-md rounded-lg shadow-xl border border-border overflow-hidden">
+      <div className="bg-card w-full max-w-md rounded-lg shadow-xl border border-border overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b border-border">
           <h3 className="text-lg font-semibold">
             {editingTransaction ? 'İşlemi Düzenle' : 'Yeni İşlem Ekle'}
@@ -142,7 +142,7 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
           </Button>
         </div>
 
-        <ScrollArea className="max-h-[70vh]">
+        <ScrollArea className="flex-1 overflow-auto">
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="transactionType">İşlem Tipi</Label>
@@ -224,7 +224,7 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-50 bg-popover" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.date ? new Date(formData.date) : undefined}
