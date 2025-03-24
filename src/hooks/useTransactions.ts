@@ -162,17 +162,24 @@ export const useTransactions = (): TransactionsHook => {
       'monthly': 'Her Ay',
       'quarterly': '3 Ayda Bir',
       'biannual': '6 Ayda Bir',
-      'yearly': 'Yıllık'
+      'yearly': 'Yıllık',
+      'custom': 'Taksitli Ödeme'
     };
 
     if (frequency === 'custom' && transaction.installmentCount) {
-      const transactionDate = new Date(transaction.date);
-      const now = new Date();
-      const monthsDiff = (now.getFullYear() - transactionDate.getFullYear()) * 12 + (now.getMonth() - transactionDate.getMonth());
+      const installmentMatch = transaction.notes?.match(/Taksit (\d+)\/(\d+)/);
       
-      const currentInstallment = Math.min(monthsDiff + 1, transaction.installmentCount);
-      
-      return `${currentInstallment}/${transaction.installmentCount} Taksit`;
+      if (installmentMatch) {
+        return `${installmentMatch[1]}/${installmentMatch[2]} Taksit`;
+      } else {
+        const transactionDate = new Date(transaction.date);
+        const now = new Date();
+        const monthsDiff = (now.getFullYear() - transactionDate.getFullYear()) * 12 + (now.getMonth() - transactionDate.getMonth());
+        
+        const currentInstallment = Math.min(Math.max(monthsDiff + 1, 1), transaction.installmentCount);
+        
+        return `${currentInstallment}/${transaction.installmentCount} Taksit`;
+      }
     }
 
     return frequencies[frequency] || frequency;
