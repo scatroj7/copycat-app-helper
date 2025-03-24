@@ -3,10 +3,11 @@ import { useState, useEffect } from 'react';
 import { 
   fetchTransactions, 
   subscribeToTransactions, 
-  addTransaction as addTransactionToCloud, 
-  updateTransaction as updateTransactionInCloud,
-  deleteTransaction as deleteTransactionFromCloud 
-} from '@/services/transactionService';
+  addTransaction as addTransactionToStorage, 
+  updateTransaction as updateTransactionInStorage,
+  deleteTransaction as deleteTransactionFromStorage,
+  generateDataUrl
+} from '@/services/localStorageService';
 
 export type TransactionType = 'income' | 'expense';
 export type FrequencyType = 'once' | 'monthly' | 'quarterly' | 'biannual' | 'yearly' | 'custom';
@@ -41,6 +42,7 @@ interface TransactionsHook {
   importTransactions: (file: File) => Promise<void>;
   loading: boolean;
   error: string | null;
+  generateSharingLink: () => Promise<string>;
 }
 
 export const useTransactions = (): TransactionsHook => {
@@ -61,7 +63,7 @@ export const useTransactions = (): TransactionsHook => {
     day: 'numeric'
   });
 
-  // Verileri yükle ve gerçek zamanlı güncellemeleri dinle
+  // Verileri yükle
   useEffect(() => {
     // İlk veri yüklemesi
     setLoading(true);
@@ -76,7 +78,7 @@ export const useTransactions = (): TransactionsHook => {
         setLoading(false);
       });
 
-    // Canlı güncellemeler için abonelik oluştur
+    // localStorage'dan ilk yükleme ve sonrasında değişiklik dinlemesi
     const unsubscribe = subscribeToTransactions((updatedTransactions) => {
       setTransactions(updatedTransactions);
     });
@@ -85,44 +87,51 @@ export const useTransactions = (): TransactionsHook => {
     return () => unsubscribe();
   }, []);
 
-  // Add a new transaction
+  // Yeni işlem ekle
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
-      await addTransactionToCloud(transaction);
-      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+      const newId = await addTransactionToStorage(transaction);
+      // localStorage'dan tekrar verileri almaya gerek yok, useEffect ile güncellenir
+      
+      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
+      setTransactions(prev => [...prev, { id: newId, ...transaction }]);
     } catch (error) {
       console.error("İşlem eklenirken hata:", error);
       setError("İşlem eklenirken bir hata oluştu.");
     }
   };
 
-  // Update an existing transaction
+  // Mevcut işlemi güncelle
   const updateTransaction = async (transaction: Transaction) => {
     try {
-      await updateTransactionInCloud(transaction);
-      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+      await updateTransactionInStorage(transaction);
+      
+      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
+      setTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
     } catch (error) {
       console.error("İşlem güncellenirken hata:", error);
       setError("İşlem güncellenirken bir hata oluştu.");
     }
   };
 
-  // Delete a transaction
+  // İşlemi sil
   const deleteTransaction = async (id: string) => {
     try {
-      await deleteTransactionFromCloud(id);
-      // Firebase gerçek zamanlı güncellemeler ile setTransactions'a gerek yok
+      await deleteTransactionFromStorage(id);
+      
+      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
+      setTransactions(prev => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error("İşlem silinirken hata:", error);
       setError("İşlem silinirken bir hata oluştu.");
     }
   };
 
-  // Filter transactions by date range
+  // Tarih aralığına göre işlemleri filtrele
   const filteredTransactions = (startDate?: Date, endDate?: Date) => {
     if (!startDate || !endDate) return transactions;
 
-    // Ensure end date includes the entire day
+    // Bitiş tarihinin tüm günü içermesini sağla
     const adjustedEndDate = new Date(endDate);
     adjustedEndDate.setHours(23, 59, 59, 999);
 
@@ -132,26 +141,26 @@ export const useTransactions = (): TransactionsHook => {
     });
   };
 
-  // Calculate income
+  // Gelir hesapla
   const getIncome = (transactions: Transaction[]) => {
     return transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-  // Calculate expenses
+  // Gider hesapla
   const getExpense = (transactions: Transaction[]) => {
     return transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-  // Calculate balance
+  // Bakiye hesapla
   const getBalance = (transactions: Transaction[]) => {
     return getIncome(transactions) - getExpense(transactions);
   };
 
-  // Get readable category name
+  // Okunabilir kategori adı al
   const getCategoryName = (category: string) => {
     const categories: Record<string, string> = {
       'salary': 'Maaş',
@@ -169,7 +178,7 @@ export const useTransactions = (): TransactionsHook => {
     return categories[category] || category;
   };
 
-  // Get readable frequency name
+  // Okunabilir frekans adı al
   const getFrequencyName = (frequency: string, transaction: Transaction) => {
     const frequencies: Record<string, string> = {
       'once': 'Tek Seferlik',
@@ -190,7 +199,7 @@ export const useTransactions = (): TransactionsHook => {
     return frequencies[frequency] || frequency;
   };
 
-  // Export transactions to a JSON file
+  // İşlemleri JSON dosyasına dışa aktar
   const exportTransactions = () => {
     try {
       const dataStr = JSON.stringify(transactions, null, 2);
@@ -199,9 +208,9 @@ export const useTransactions = (): TransactionsHook => {
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(dataBlob);
       
-      // Add date to filename
+      // Dosya adına tarih ekle
       const date = new Date();
-      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD formatı
       
       downloadLink.download = `butce-verilerim-${formattedDate}.json`;
       downloadLink.click();
@@ -213,7 +222,7 @@ export const useTransactions = (): TransactionsHook => {
     }
   };
 
-  // Import transactions from a JSON file
+  // JSON dosyasından işlemleri içe aktar
   const importTransactions = async (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
       try {
@@ -227,22 +236,26 @@ export const useTransactions = (): TransactionsHook => {
             
             const importedData = JSON.parse(e.target.result as string) as Transaction[];
             
-            // Validate imported data
+            // İçe aktarılan veriyi doğrula
             if (!Array.isArray(importedData)) {
               throw new Error('Geçersiz veri formatı, dizi bekleniyor');
             }
             
-            for (const item of importedData) {
-              if (!item.id || !item.description || !item.amount || !item.date) {
-                throw new Error('Eksik veri alanları');
+            // Doğrulanmış veriyi localStorage'a kaydet
+            await Promise.all(importedData.map(async (transaction) => {
+              if (transaction.id) {
+                // Varolan ID'yi koru
+                await updateTransactionInStorage(transaction);
+              } else {
+                // Yeni ID oluştur
+                const { id, ...data } = transaction;
+                await addTransactionToStorage(data);
               }
-            }
+            }));
             
-            // Her bir işlemi Firestore'a ekle
-            for (const transaction of importedData) {
-              const { id, ...data } = transaction;
-              await addTransactionToCloud(data);
-            }
+            // State'i güncelle
+            const updatedTransactions = await fetchTransactions();
+            setTransactions(updatedTransactions);
             
             resolve();
           } catch (parseError) {
@@ -263,6 +276,11 @@ export const useTransactions = (): TransactionsHook => {
     });
   };
 
+  // Paylaşım linki oluştur
+  const generateSharingLink = async (): Promise<string> => {
+    return generateDataUrl();
+  };
+
   return {
     transactions,
     addTransaction,
@@ -279,6 +297,7 @@ export const useTransactions = (): TransactionsHook => {
     exportTransactions,
     importTransactions,
     loading,
-    error
+    error,
+    generateSharingLink
   };
 };

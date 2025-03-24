@@ -5,18 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Upload, Download, Database } from 'lucide-react';
-import FirebaseConfigForm from './FirebaseConfigForm';
+import { Download, Upload, Share2, QrCode } from 'lucide-react';
 
 interface BackupActionsProps {
   exportTransactions: () => void;
   importTransactions: (file: File) => Promise<void>;
+  generateSharingLink?: () => Promise<string>;
 }
 
-const BackupActions = ({ exportTransactions, importTransactions }: BackupActionsProps) => {
+const BackupActions = ({ exportTransactions, importTransactions, generateSharingLink }: BackupActionsProps) => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [sharingUrl, setSharingUrl] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -54,6 +56,22 @@ const BackupActions = ({ exportTransactions, importTransactions }: BackupActions
     }
   };
 
+  const handleGenerateQrCode = async () => {
+    if (!generateSharingLink) return;
+    
+    try {
+      const dataUrl = await generateSharingLink();
+      setSharingUrl(dataUrl);
+      setIsQrDialogOpen(true);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "QR Kodu Oluşturma Hatası",
+        description: "QR kodu oluşturulurken bir hata oluştu."
+      });
+    }
+  };
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -62,13 +80,9 @@ const BackupActions = ({ exportTransactions, importTransactions }: BackupActions
       <CardContent className="space-y-4">
         <div>
           <p className="text-sm text-muted-foreground mb-4">
-            Verileriniz otomatik olarak bulut veritabanında saklanır ve farklı cihazlardan erişilebilir.
+            Verileriniz cihazınızda yerel olarak saklanır. Farklı cihazlar arasında veri paylaşımı için dışa/içe aktarma özelliğini kullanın.
           </p>
-          
-          <FirebaseConfigForm />
         </div>
-        
-        <div className="h-px bg-border my-4" />
         
         <div className="flex flex-col gap-2">
           <Button 
@@ -117,6 +131,38 @@ const BackupActions = ({ exportTransactions, importTransactions }: BackupActions
               </div>
             </DialogContent>
           </Dialog>
+
+          {generateSharingLink && (
+            <>
+              <Button 
+                onClick={handleGenerateQrCode}
+                className="w-full justify-start" 
+                variant="outline"
+              >
+                <QrCode className="mr-2 h-4 w-4" /> QR Kod ile Paylaş
+              </Button>
+
+              <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>QR Kod ile Veri Paylaşımı</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex flex-col items-center justify-center py-4">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Bu QR kodu diğer cihazınızla tarayarak verilerinizi aktarabilirsiniz.
+                    </p>
+                    {sharingUrl && (
+                      <div className="border border-border p-4 rounded-lg">
+                        <a href={sharingUrl} download="butce-verilerim.json">
+                          İndirmek için tıklayın
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

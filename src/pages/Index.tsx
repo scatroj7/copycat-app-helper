@@ -28,7 +28,8 @@ const Index = () => {
     formatter,
     dateFormatter,
     exportTransactions,
-    importTransactions
+    importTransactions,
+    generateSharingLink
   } = useTransactions();
 
   const { forecastMonths, setForecastMonths, calculateForecast } = useForecast();
@@ -186,6 +187,7 @@ const Index = () => {
               <BackupActions 
                 exportTransactions={exportTransactions}
                 importTransactions={importTransactions}
+                generateSharingLink={generateSharingLink}
               />
             </div>
             <div className="md:col-span-2">
