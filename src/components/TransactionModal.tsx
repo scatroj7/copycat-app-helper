@@ -174,7 +174,7 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
               <option value="quarterly">3 Ayda Bir</option>
               <option value="biannual">6 Ayda Bir</option>
               <option value="yearly">Yıllık</option>
-              <option value="custom">Özel Taksit</option>
+              <option value="custom">Taksitli Ödeme</option>
             </select>
           </div>
 
@@ -190,6 +190,9 @@ const TransactionModal = ({ isOpen, onClose, onSave, editingTransaction }: Trans
                 onChange={handleChange}
                 required
               />
+              <div className="text-xs text-muted-foreground mt-1">
+                İlk taksit bugünden başlayacak şekilde hesaplanır.
+              </div>
             </div>
           )}
 

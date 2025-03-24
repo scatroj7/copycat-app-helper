@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   fetchTransactions, 
@@ -50,7 +49,6 @@ export const useTransactions = (): TransactionsHook => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Formatters
   const formatter = new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',
@@ -63,9 +61,7 @@ export const useTransactions = (): TransactionsHook => {
     day: 'numeric'
   });
 
-  // Verileri yükle
   useEffect(() => {
-    // İlk veri yüklemesi
     setLoading(true);
     fetchTransactions()
       .then(data => {
@@ -78,22 +74,16 @@ export const useTransactions = (): TransactionsHook => {
         setLoading(false);
       });
 
-    // localStorage'dan ilk yükleme ve sonrasında değişiklik dinlemesi
     const unsubscribe = subscribeToTransactions((updatedTransactions) => {
       setTransactions(updatedTransactions);
     });
 
-    // Temizlik fonksiyonu
     return () => unsubscribe();
   }, []);
 
-  // Yeni işlem ekle
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
       const newId = await addTransactionToStorage(transaction);
-      // localStorage'dan tekrar verileri almaya gerek yok, useEffect ile güncellenir
-      
-      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
       setTransactions(prev => [...prev, { id: newId, ...transaction }]);
     } catch (error) {
       console.error("İşlem eklenirken hata:", error);
@@ -101,12 +91,9 @@ export const useTransactions = (): TransactionsHook => {
     }
   };
 
-  // Mevcut işlemi güncelle
   const updateTransaction = async (transaction: Transaction) => {
     try {
       await updateTransactionInStorage(transaction);
-      
-      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
       setTransactions(prev => prev.map(t => t.id === transaction.id ? transaction : t));
     } catch (error) {
       console.error("İşlem güncellenirken hata:", error);
@@ -114,12 +101,9 @@ export const useTransactions = (): TransactionsHook => {
     }
   };
 
-  // İşlemi sil
   const deleteTransaction = async (id: string) => {
     try {
       await deleteTransactionFromStorage(id);
-      
-      // Manuel olarak state'i güncelle (kullanıcı deneyimi için)
       setTransactions(prev => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error("İşlem silinirken hata:", error);
@@ -127,11 +111,9 @@ export const useTransactions = (): TransactionsHook => {
     }
   };
 
-  // Tarih aralığına göre işlemleri filtrele
   const filteredTransactions = (startDate?: Date, endDate?: Date) => {
     if (!startDate || !endDate) return transactions;
 
-    // Bitiş tarihinin tüm günü içermesini sağla
     const adjustedEndDate = new Date(endDate);
     adjustedEndDate.setHours(23, 59, 59, 999);
 
@@ -141,26 +123,22 @@ export const useTransactions = (): TransactionsHook => {
     });
   };
 
-  // Gelir hesapla
   const getIncome = (transactions: Transaction[]) => {
     return transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-  // Gider hesapla
   const getExpense = (transactions: Transaction[]) => {
     return transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-  // Bakiye hesapla
   const getBalance = (transactions: Transaction[]) => {
     return getIncome(transactions) - getExpense(transactions);
   };
 
-  // Okunabilir kategori adı al
   const getCategoryName = (category: string) => {
     const categories: Record<string, string> = {
       'salary': 'Maaş',
@@ -178,7 +156,6 @@ export const useTransactions = (): TransactionsHook => {
     return categories[category] || category;
   };
 
-  // Okunabilir frekans adı al
   const getFrequencyName = (frequency: string, transaction: Transaction) => {
     const frequencies: Record<string, string> = {
       'once': 'Tek Seferlik',
@@ -192,14 +169,15 @@ export const useTransactions = (): TransactionsHook => {
       const transactionDate = new Date(transaction.date);
       const now = new Date();
       const monthsDiff = (now.getFullYear() - transactionDate.getFullYear()) * 12 + (now.getMonth() - transactionDate.getMonth());
+      
       const currentInstallment = Math.min(monthsDiff + 1, transaction.installmentCount);
+      
       return `${currentInstallment}/${transaction.installmentCount} Taksit`;
     }
 
     return frequencies[frequency] || frequency;
   };
 
-  // İşlemleri JSON dosyasına dışa aktar
   const exportTransactions = () => {
     try {
       const dataStr = JSON.stringify(transactions, null, 2);
@@ -208,9 +186,8 @@ export const useTransactions = (): TransactionsHook => {
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(dataBlob);
       
-      // Dosya adına tarih ekle
       const date = new Date();
-      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD formatı
+      const formattedDate = date.toISOString().split('T')[0];
       
       downloadLink.download = `butce-verilerim-${formattedDate}.json`;
       downloadLink.click();
@@ -222,7 +199,6 @@ export const useTransactions = (): TransactionsHook => {
     }
   };
 
-  // JSON dosyasından işlemleri içe aktar
   const importTransactions = async (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
       try {
@@ -236,24 +212,19 @@ export const useTransactions = (): TransactionsHook => {
             
             const importedData = JSON.parse(e.target.result as string) as Transaction[];
             
-            // İçe aktarılan veriyi doğrula
             if (!Array.isArray(importedData)) {
               throw new Error('Geçersiz veri formatı, dizi bekleniyor');
             }
             
-            // Doğrulanmış veriyi localStorage'a kaydet
             await Promise.all(importedData.map(async (transaction) => {
               if (transaction.id) {
-                // Varolan ID'yi koru
                 await updateTransactionInStorage(transaction);
               } else {
-                // Yeni ID oluştur
                 const { id, ...data } = transaction;
                 await addTransactionToStorage(data);
               }
             }));
             
-            // State'i güncelle
             const updatedTransactions = await fetchTransactions();
             setTransactions(updatedTransactions);
             
@@ -276,7 +247,6 @@ export const useTransactions = (): TransactionsHook => {
     });
   };
 
-  // Paylaşım linki oluştur
   const generateSharingLink = async (): Promise<string> => {
     return generateDataUrl();
   };
